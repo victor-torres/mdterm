@@ -5,23 +5,14 @@ from colored import fg, attr
 from markdown2 import Markdown
 from HTMLParser import HTMLParser
 
-DEFAULT_THEME = dict(
-    headers=dict(
-        h1='215',
-        h2='172',
-        h3='166',
-        h4='160',
-        h5='88',
-        h6='52'
-    )
-)
+DEFAULT_THEME = ('215', '172', '166', '160', '88', '52')
 
 class Terminal(object):
     """Retrieves terminal rows and columns numbers."""
     def __init__(self):
-        self.rows, self.columns = os.popen('stty size', 'r').read().split()
-        self.rows = int(self.rows)
-        self.columns = int(self.columns)
+        # It will only work in unix-based systems
+        rows, columns = os.popen('stty size', 'r').read().split()
+        self.rows, self.columns = (int(rows), int(columns))
 
 class MarkdownParser(HTMLParser):
     """mdterm - prints markdown in your terminal"""
@@ -36,6 +27,8 @@ class MarkdownParser(HTMLParser):
 
         self.theme = DEFAULT_THEME
         self.terminal = Terminal()
+        self.list_level = -1
+        self.list_level_map = [[0, None] for level in range(1, 7)]
 
         self.read_file(file)
         self.parse_markdown()
@@ -56,18 +49,41 @@ class MarkdownParser(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         """Encountered a start tag"""
-        if tag.startswith('h') and tag[1] != 'r':
-            self.term += fg(self.theme['headers']['h%s' % tag[1]])
-            self.term += ' ' * (int(tag[1]) - 1)
+        # self.term += '<%s>' % tag
+        if tag in ('h%d' % level for level in range(1, 7)):
+            # Header [1...6]
+            level = int(tag[1]) - 1
+            self.term += fg(self.theme[level])
+            self.term += ' ' * level
 
         if tag == 'hr':
+            # Ruler
             self.term += '\r%s' % ('-' * self.terminal.columns)
+
+        if tag in ('ul', 'ol') and self.list_level < 6:
+            self.list_level += 1
+            self.list_level_map[self.list_level][1] = tag
+
+        if tag == 'li':
+            self.term += fg(self.theme[self.list_level])
+            self.term += ' ' * self.list_level
+
+            if self.list_level_map[self.list_level][1] == 'ol':
+                self.list_level_map[self.list_level][0] += 1
+                self.term += '%d. ' % self.list_level_map[self.list_level][0]
+            else:
+                self.term += '- '
+
+            self.term += attr('reset')
+
 
     def handle_endtag(self, tag):
         """Encountered an end tag"""
-        # self.term += tag
-        if tag.startswith('h'):
-            self.term += attr('reset')
+        self.term += attr('reset')
+
+        if tag in ('ul', 'ol'):
+            self.list_level_map[self.list_level][0] = 0
+            self.list_level -= 1
 
     def handle_data(self, data):
         """Encountered some data"""
