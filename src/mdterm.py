@@ -1,4 +1,5 @@
 #coding: utf-8
+import os
 import sys
 from colored import fg, attr
 from markdown2 import Markdown
@@ -15,6 +16,13 @@ DEFAULT_THEME = dict(
     )
 )
 
+class Terminal(object):
+    """Retrieves terminal rows and columns numbers."""
+    def __init__(self):
+        self.rows, self.columns = os.popen('stty size', 'r').read().split()
+        self.rows = int(self.rows)
+        self.columns = int(self.columns)
+
 class MarkdownParser(HTMLParser):
     """mdterm - prints markdown in your terminal"""
 
@@ -27,6 +35,7 @@ class MarkdownParser(HTMLParser):
         self.term = ''
 
         self.theme = DEFAULT_THEME
+        self.terminal = Terminal()
 
         self.read_file(file)
         self.parse_markdown()
@@ -45,13 +54,14 @@ class MarkdownParser(HTMLParser):
         """Parses HTML into Terminal text."""
         self.feed(self.html)
 
-
     def handle_starttag(self, tag, attrs):
         """Encountered a start tag"""
-        # self.term += tag
         if tag.startswith('h') and tag[1] != 'r':
             self.term += fg(self.theme['headers']['h%s' % tag[1]])
             self.term += ' ' * (int(tag[1]) - 1)
+
+        if tag == 'hr':
+            self.term += '\r%s' % ('-' * self.terminal.columns)
 
     def handle_endtag(self, tag):
         """Encountered an end tag"""
@@ -70,7 +80,7 @@ def main(argv):
         print 'Usage: mdterm file...'
         return
 
-    # Tries to open and read file
+    # Tries to open given file
     try:
         markdown_file = open(argv[0])
     except:
