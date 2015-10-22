@@ -1,12 +1,15 @@
 #coding: utf-8
 import sys
+from markdown2 import Markdown
 
 class MarkdownParser(object):
     """mdterm - prints markdown in your terminal"""
 
     def __init__(self, file):
         # Reads file and store its raw data
+        markdowner = Markdown()
         self.raw = file.read()
+        self.html = markdowner.convert(self.raw)
 
 
 def main(argv):
@@ -23,7 +26,7 @@ def main(argv):
         return
 
     markdown_parser = MarkdownParser(markdown_file)
-    print markdown_parser.raw
+    print markdown_parser.html
 
 if __name__ == "__main__":
     main(sys.argv[1:])
